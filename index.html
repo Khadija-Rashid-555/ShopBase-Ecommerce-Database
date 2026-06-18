@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ShopBase — Live Oracle DB</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080c14;--surface:#0e1520;--card:#111927;--border:#1e2d42;
+  --accent:#4f9fff;--success:#22c55e;--danger:#ef4444;--warn:#f59e0b;
+  --text:#e2eaf6;--muted:#5a7a9a;--tag:#162033;
+  --font-head:'Syne',sans-serif;--font-body:'DM Sans',sans-serif;--font-mono:'DM Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;overflow-x:hidden}
+#app{display:flex;height:100vh;overflow:hidden}
+
+/* SIDEBAR */
+#sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sb-logo{padding:20px 18px 12px;border-bottom:1px solid var(--border)}
+.sb-logo-title{font-family:var(--font-head);font-size:18px;font-weight:800;color:#fff}
+.sb-logo-sub{font-size:11px;color:var(--muted);margin-top:2px;font-family:var(--font-mono)}
+.sb-section{padding:10px 10px 4px;font-size:10px;letter-spacing:1.5px;color:var(--muted);font-family:var(--font-mono);text-transform:uppercase}
+.sb-item{display:flex;align-items:center;gap:10px;padding:8px 14px;margin:1px 6px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--muted);transition:all .15s;border:1px solid transparent}
+.sb-item:hover{background:var(--tag);color:var(--text)}
+.sb-item.active{background:rgba(79,159,255,.12);color:var(--accent);border-color:rgba(79,159,255,.2)}
+.sb-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:.15s}
+.sb-item.active .sb-dot{background:var(--accent)}
+.sb-count{margin-left:auto;font-size:10px;font-family:var(--font-mono);background:var(--tag);padding:1px 6px;border-radius:20px;color:var(--muted)}
+.sb-item.active .sb-count{color:var(--accent);background:rgba(79,159,255,.12)}
+
+/* MAIN */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap}
+#page-title{font-family:var(--font-head);font-size:16px;font-weight:700;color:#fff;flex:1;min-width:100px}
+.top-btn{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;cursor:pointer;font-family:var(--font-body);transition:.15s;white-space:nowrap}
+.top-btn:hover{border-color:var(--accent);color:var(--accent)}
+.top-btn.primary{background:#2563eb;border-color:#2563eb;color:#fff}
+.top-btn.primary:hover{background:#1d4ed8}
+.top-btn.danger{border-color:var(--danger);color:var(--danger)}
+.top-btn.danger:hover{background:rgba(239,68,68,.1)}
+.top-btn.warn{border-color:var(--warn);color:var(--warn)}
+.top-btn.warn:hover{background:rgba(245,158,11,.1)}
+.top-btn.success{border-color:var(--success);color:var(--success)}
+.top-btn.success:hover{background:rgba(34,197,94,.1)}
+.top-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* CONTENT */
+#content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+
+/* DASHBOARD */
+#dashboard{padding:24px;overflow-y:auto;height:100%}
+.dash-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.stat-card.blue::before{background:linear-gradient(90deg,#4f9fff,#2563eb)}
+.stat-card.green::before{background:linear-gradient(90deg,#22c55e,#16a34a)}
+.stat-card.amber::before{background:linear-gradient(90deg,#f59e0b,#d97706)}
+.stat-card.pink::before{background:linear-gradient(90deg,#ec4899,#db2777)}
+.stat-val{font-family:var(--font-head);font-size:32px;font-weight:800;color:#fff;line-height:1}
+.stat-label{font-size:12px;color:var(--muted);margin-top:6px;font-family:var(--font-mono)}
+.section-title{font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px}
+.schema-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px}
+.schema-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:12px}
+.schema-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.schema-icon{font-size:20px;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.schema-name{font-size:13px;font-weight:500;color:var(--text)}
+.schema-count{font-size:11px;color:var(--muted);font-family:var(--font-mono);margin-top:2px}
+.conn-status{display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:24px;font-size:13px}
+.conn-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.conn-dot.ok{background:var(--success);box-shadow:0 0 6px var(--success)}
+.conn-dot.err{background:var(--danger);box-shadow:0 0 6px var(--danger)}
+
+/* TABLE VIEW */
+#table-view{display:none;flex-direction:column;height:100%;overflow:hidden}
+.tv-toolbar{padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);flex-shrink:0}
+.tv-search{position:relative;flex:1;min-width:180px}
+.tv-search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted)}
+.tv-search input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-body);font-size:13px;padding:7px 12px 7px 34px;outline:none;transition:.2s}
+.tv-search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,159,255,.08)}
+.tv-search input::placeholder{color:var(--muted)}
+.col-filter{background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:7px 10px;outline:none;font-family:var(--font-body);cursor:pointer}
+.col-filter option{background:var(--card)}
+.row-count{font-size:12px;color:var(--muted);font-family:var(--font-mono);white-space:nowrap;margin-left:auto}
+.tv-table-wrap{flex:1;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:var(--surface);color:var(--muted);font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.8px;text-transform:uppercase;padding:10px 16px;text-align:left;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1;white-space:nowrap;cursor:pointer;user-select:none;transition:.15s}
+thead th:hover{color:var(--accent)}
+thead th.sorted{color:var(--accent)}
+tbody tr{border-bottom:1px solid rgba(30,45,66,.5);transition:.1s;cursor:pointer}
+tbody tr:hover{background:rgba(79,159,255,.04)}
+tbody tr.selected{background:rgba(79,159,255,.09)!important}
+tbody td{padding:10px 16px;color:var(--text);font-size:13px;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+tbody td:first-child{font-family:var(--font-mono);color:var(--muted);font-size:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-family:var(--font-mono);background:rgba(79,159,255,.12);color:var(--accent)}
+.empty-state{text-align:center;padding:64px 24px;color:var(--muted)}
+.empty-icon{font-size:48px;margin-bottom:12px;opacity:.4}
+.empty-title{font-size:15px;font-family:var(--font-head);margin-bottom:6px}
+.empty-sub{font-size:13px;opacity:.6}
+.loading{text-align:center;padding:48px;color:var(--muted);font-family:var(--font-mono);font-size:13px}
+
+/* STATUS BAR */
+#statusbar{height:30px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
+.sb-msg{font-size:11px;font-family:var(--font-mono);color:var(--muted)}
+.sb-msg.ok{color:var(--success)}
+.sb-msg.err{color:var(--danger)}
+.sb-msg.info{color:var(--accent)}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.2s}
+.modal-overlay.show{opacity:1;pointer-events:all}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:540px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.6);transform:translateY(20px);transition:.2s}
+.modal-overlay.show .modal{transform:translateY(0)}
+.modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-family:var(--font-head);font-size:15px;font-weight:700;color:#fff}
+.modal-sub{font-size:11px;color:var(--muted);font-family:var(--font-mono);margin-top:3px}
+.modal-close{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:.15s}
+.modal-close:hover{color:var(--text)}
+.modal-body{padding:20px 24px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group.full{grid-column:1/-1}
+.form-label{font-size:11px;color:var(--muted);font-family:var(--font-mono);letter-spacing:.5px;text-transform:uppercase}
+.form-input{background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-body);font-size:13px;padding:9px 12px;outline:none;transition:.2s}
+.form-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,159,255,.08)}
+.form-input::placeholder{color:var(--muted)}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end}
+.error-box{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--danger);font-family:var(--font-mono);margin-top:10px;display:none}
+
+/* CONFIRM */
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:150;display:none;align-items:center;justify-content:center}
+.confirm-overlay.show{display:flex}
+.confirm-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;width:360px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.confirm-icon{font-size:36px;margin-bottom:12px}
+.confirm-title{font-family:var(--font-head);font-size:16px;font-weight:700;color:#fff;margin-bottom:8px}
+.confirm-msg{font-size:13px;color:var(--muted);margin-bottom:22px;line-height:1.6}
+.confirm-btns{display:flex;gap:10px;justify-content:center}
+
+/* TOAST */
+#toast{position:fixed;bottom:24px;right:24px;z-index:200;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:13px;min-width:220px;max-width:320px;transform:translateX(20px);opacity:0;transition:.3s;pointer-events:all}
+.toast-item.show{transform:translateX(0);opacity:1}
+.toast-item.ok{border-left:3px solid var(--success);color:var(--success)}
+.toast-item.err{border-left:3px solid var(--danger);color:var(--danger)}
+.toast-item.info{border-left:3px solid var(--accent);color:var(--accent)}
+
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .25s ease forwards}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <nav id="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-title">ShopBase</div>
+      <div class="sb-logo-sub">Live Oracle XE</div>
+    </div>
+    <div class="sb-section">Overview</div>
+    <div class="sb-item active" onclick="showDashboard(this)"><span class="sb-dot"></span><span>Dashboard</span></div>
+    <div class="sb-section">Users</div>
+    <div class="sb-item" onclick="showTable('Users',this)"><span class="sb-dot"></span><span>Users</span><span class="sb-count" id="cnt-Users">—</span></div>
+    <div class="sb-item" onclick="showTable('Customers',this)"><span class="sb-dot"></span><span>Customers</span><span class="sb-count" id="cnt-Customers">—</span></div>
+    <div class="sb-item" onclick="showTable('Sellers',this)"><span class="sb-dot"></span><span>Sellers</span><span class="sb-count" id="cnt-Sellers">—</span></div>
+    <div class="sb-section">Catalog</div>
+    <div class="sb-item" onclick="showTable('Products',this)"><span class="sb-dot"></span><span>Products</span><span class="sb-count" id="cnt-Products">—</span></div>
+    <div class="sb-item" onclick="showTable('Categories',this)"><span class="sb-dot"></span><span>Categories</span><span class="sb-count" id="cnt-Categories">—</span></div>
+    <div class="sb-item" onclick="showTable('Coupon',this)"><span class="sb-dot"></span><span>Coupons</span><span class="sb-count" id="cnt-Coupon">—</span></div>
+    <div class="sb-section">Commerce</div>
+    <div class="sb-item" onclick="showTable('Orders',this)"><span class="sb-dot"></span><span>Orders</span><span class="sb-count" id="cnt-Orders">—</span></div>
+    <div class="sb-item" onclick="showTable('Order_Items',this)"><span class="sb-dot"></span><span>Order Items</span><span class="sb-count" id="cnt-Order_Items">—</span></div>
+    <div class="sb-item" onclick="showTable('Payment',this)"><span class="sb-dot"></span><span>Payments</span><span class="sb-count" id="cnt-Payment">—</span></div>
+    <div class="sb-section">Logistics</div>
+    <div class="sb-item" onclick="showTable('Shipment',this)"><span class="sb-dot"></span><span>Shipments</span><span class="sb-count" id="cnt-Shipment">—</span></div>
+    <div class="sb-item" onclick="showTable('Warehouse',this)"><span class="sb-dot"></span><span>Warehouses</span><span class="sb-count" id="cnt-Warehouse">—</span></div>
+    <div class="sb-item" onclick="showTable('Product_Warehouse',this)"><span class="sb-dot"></span><span>Stock</span><span class="sb-count" id="cnt-Product_Warehouse">—</span></div>
+    <div class="sb-section">Feedback</div>
+    <div class="sb-item" onclick="showTable('Reviews',this)"><span class="sb-dot"></span><span>Reviews</span><span class="sb-count" id="cnt-Reviews">—</span></div>
+  </nav>
+
+  <!-- MAIN -->
+  <div id="main">
+    <div id="topbar">
+      <span id="page-title">Dashboard</span>
+      <button class="top-btn primary" onclick="openAddModal()">＋ Add Row</button>
+      <button class="top-btn warn" onclick="openEditModal()">✎ Edit</button>
+      <button class="top-btn danger" onclick="deleteRow()">✕ Delete</button>
+      <button class="top-btn" onclick="loadTable(currentTable)" id="btn-refresh" disabled>↻ Refresh</button>
+    </div>
+
+    <div id="content">
+
+      <!-- DASHBOARD -->
+      <div id="dashboard" style="padding:24px;overflow-y:auto;height:100%">
+        <div class="conn-status" id="conn-status">
+          <div class="conn-dot" id="conn-dot"></div>
+          <span id="conn-text" style="font-family:var(--font-mono);font-size:12px">Connecting to Oracle XE…</span>
+        </div>
+
+        <div class="dash-grid">
+          <div class="stat-card blue fade-in"><div class="stat-val" id="d-users">—</div><div class="stat-label">Users</div></div>
+          <div class="stat-card green fade-in"><div class="stat-val" id="d-products">—</div><div class="stat-label">Products</div></div>
+          <div class="stat-card amber fade-in"><div class="stat-val" id="d-orders">—</div><div class="stat-label">Orders</div></div>
+          <div class="stat-card pink fade-in"><div class="stat-val" id="d-reviews">—</div><div class="stat-label">Reviews</div></div>
+        </div>
+
+        <div class="section-title">All Tables — click to open</div>
+        <div class="schema-grid" id="schema-grid"></div>
+      </div>
+
+      <!-- TABLE VIEW -->
+      <div id="table-view" style="display:none;flex-direction:column;height:100%;overflow:hidden">
+        <div class="tv-toolbar">
+          <div class="tv-search">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input id="tv-search" placeholder="Search…" oninput="filterTable()"/>
+          </div>
+          <select id="tv-col-filter" class="col-filter" onchange="filterTable()">
+            <option value="all">All columns</option>
+          </select>
+          <span class="row-count" id="row-count">— rows</span>
+        </div>
+        <div class="tv-table-wrap">
+          <div id="table-loading" class="loading" style="display:none">Loading from Oracle…</div>
+          <table id="data-table" style="display:none">
+            <thead id="table-head"></thead>
+            <tbody id="table-body"></tbody>
+          </table>
+          <div id="empty-state" class="empty-state" style="display:none">
+            <div class="empty-icon">📭</div>
+            <div class="empty-title">No rows found</div>
+            <div class="empty-sub">This table is empty or no results match your search</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div id="statusbar">
+      <span class="sb-msg" id="status-msg">Connecting to Oracle XE at localhost:1521…</span>
+      <span style="margin-left:auto;font-size:11px;font-family:var(--font-mono);color:var(--muted)" id="table-label"></span>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title" id="modal-title">Add Row</div><div class="modal-sub" id="modal-sub"></div></div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" id="form-fields"></div>
+      <div class="error-box" id="modal-error"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="top-btn" onclick="closeModal()">Cancel</button>
+      <button class="top-btn primary" onclick="saveRow()">💾 Save to Oracle</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DELETE -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-icon">⚠️</div>
+    <div class="confirm-title">Delete Row?</div>
+    <div class="confirm-msg">This will permanently delete the row from your Oracle database. This cannot be undone.</div>
+    <div class="confirm-btns">
+      <button class="top-btn" onclick="document.getElementById('confirm-overlay').classList.remove('show')">Cancel</button>
+      <button class="top-btn danger" onclick="confirmDelete()">Delete from Oracle</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+const TABLES = ['Users','Customers','Sellers','Categories','Warehouse','Products','Coupon','Orders','Payment','Shipment','Order_Items','Reviews','Product_Warehouse'];
+const ICONS  = {Users:'👤',Customers:'🛍️',Sellers:'🏪',Products:'📦',Categories:'🗂️',Coupon:'🎟️',Orders:'🧾',Order_Items:'📋',Payment:'💳',Shipment:'🚚',Warehouse:'🏭',Product_Warehouse:'📊',Reviews:'⭐'};
+const COLORS  = {Users:'#4f9fff',Customers:'#22c55e',Sellers:'#f59e0b',Products:'#ec4899',Categories:'#8b5cf6',Coupon:'#f59e0b',Orders:'#22c55e',Order_Items:'#4f9fff',Payment:'#ef4444',Shipment:'#14b8a6',Warehouse:'#8b5cf6',Product_Warehouse:'#f97316',Reviews:'#f59e0b'};
+const WIDE   = ['Email','Comments','Location','ShopName','Street','Name','ShipVia','Code'];
+
+let currentTable = null;
+let allRows = [];
+let columns = [];
+let filtered = [];
+let selectedIdx = null;
+let editMode = false;
+let sortCol = null, sortDir = 1;
+
+// ── API ──────────────────────────────────────────────────
+async function api(method, table, body) {
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if(body) opts.body = JSON.stringify(body);
+  const r = await fetch(`http://localhost:3000/api/${table}`, opts);
+  return r.json();
+}
+
+// ── CONNECTION CHECK ─────────────────────────────────────
+async function checkConnection() {
+  try {
+    const data = await api('GET','Users');
+    if(data.error) throw new Error(data.error);
+    setConnected(true);
+    loadDashboard();
+  } catch(e) {
+    setConnected(false);
+    setStatus('Cannot connect to Oracle — is the server running?','err');
+  }
+}
+
+function setConnected(ok) {
+  document.getElementById('conn-dot').className = 'conn-dot '+(ok?'ok':'err');
+  document.getElementById('conn-text').textContent = ok
+    ? '✅  Connected to Oracle XE at localhost:1521/xe'
+    : '❌  Cannot connect — make sure server.js is running in CMD';
+}
+
+// ── DASHBOARD ────────────────────────────────────────────
+async function loadDashboard() {
+  const map = {Users:'d-users',Products:'d-products',Orders:'d-orders',Reviews:'d-reviews'};
+  for(const [t,id] of Object.entries(map)) {
+    try {
+      const d = await api('GET',t);
+      const n = d.rows?.length ?? '—';
+      document.getElementById(id).textContent = n;
+      const c = document.getElementById('cnt-'+t);
+      if(c) c.textContent = n;
+    } catch{}
+  }
+  // schema grid
+  const grid = document.getElementById('schema-grid');
+  grid.innerHTML = TABLES.map(t => `
+    <div class="schema-card" onclick="showTable('${t}',null)">
+      <div class="schema-icon" style="background:${COLORS[t]}18;color:${COLORS[t]}">${ICONS[t]}</div>
+      <div>
+        <div class="schema-name">${t}</div>
+        <div class="schema-count" id="sc-${t}">click to load</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── NAVIGATION ───────────────────────────────────────────
+function showDashboard(el) {
+  setActive(el);
+  document.getElementById('dashboard').style.display='block';
+  document.getElementById('table-view').style.display='none';
+  document.getElementById('page-title').textContent='Dashboard';
+  document.getElementById('table-label').textContent='';
+  document.getElementById('btn-refresh').disabled=true;
+  currentTable=null; selectedIdx=null;
+}
+
+async function showTable(name, el) {
+  if(el) setActive(el);
+  else {
+    document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
+    document.querySelectorAll('.sb-item').forEach(i=>{ if(i.querySelector('span:nth-child(2)')?.textContent===name) i.classList.add('active'); });
+  }
+  currentTable=name; selectedIdx=null;
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('table-view').style.display='flex';
+  document.getElementById('page-title').textContent=name;
+  document.getElementById('btn-refresh').disabled=false;
+  await loadTable(name);
+}
+
+async function loadTable(name) {
+  if(!name) return;
+  document.getElementById('table-loading').style.display='block';
+  document.getElementById('data-table').style.display='none';
+  document.getElementById('empty-state').style.display='none';
+  setStatus(`Loading ${name} from Oracle…`,'info');
+
+  try {
+    const data = await api('GET', name);
+    if(data.error) throw new Error(data.error);
+    columns = data.columns || [];
+    allRows = (data.rows || []).map(r => {
+      const obj={};
+      columns.forEach((c,i)=>{ obj[c]=r[i]??r[c]??''; });
+      return obj;
+    });
+    buildHead();
+    filterTable();
+    const cnt = document.getElementById('cnt-'+name);
+    if(cnt) cnt.textContent = allRows.length;
+    const sc = document.getElementById('sc-'+name);
+    if(sc) sc.textContent = allRows.length+' rows';
+    setStatus(`✔ Loaded ${allRows.length} rows from ${name}`,'ok');
+    document.getElementById('table-label').textContent=`${name} • ${allRows.length} rows`;
+  } catch(e) {
+    setStatus('Error: '+e.message,'err');
+    toast('Oracle error: '+e.message,'err');
+    document.getElementById('table-loading').style.display='none';
+    document.getElementById('empty-state').style.display='block';
+  }
+}
+
+function buildHead() {
+  const cf = document.getElementById('tv-col-filter');
+  cf.innerHTML='<option value="all">All columns</option>'+columns.map(c=>`<option value="${c}">${c}</option>`).join('');
+  document.getElementById('table-head').innerHTML=`<tr>${columns.map(c=>`
+    <th onclick="sortBy('${c}')" class="${sortCol===c?'sorted':''}">${c}${sortCol===c?(sortDir>0?' ↑':' ↓'):''}</th>`).join('')}</tr>`;
+}
+
+function filterTable() {
+  const q=(document.getElementById('tv-search')?.value||'').toLowerCase().trim();
+  const col=document.getElementById('tv-col-filter')?.value||'all';
+  filtered=q?allRows.filter(r=>col==='all'?Object.values(r).some(v=>String(v).toLowerCase().includes(q)):String(r[col]??'').toLowerCase().includes(q)):[...allRows];
+  renderRows();
+}
+
+function renderRows() {
+  document.getElementById('table-loading').style.display='none';
+  document.getElementById('row-count').textContent=`${filtered.length} / ${allRows.length} rows`;
+  if(!filtered.length){
+    document.getElementById('data-table').style.display='none';
+    document.getElementById('empty-state').style.display='block';
+    return;
+  }
+  document.getElementById('empty-state').style.display='none';
+  document.getElementById('data-table').style.display='table';
+  document.getElementById('table-body').innerHTML=filtered.map((row,i)=>`
+    <tr onclick="selectRow(${i})" class="${selectedIdx===i?'selected':''}">
+      ${columns.map((c,ci)=>`<td title="${esc(row[c]??'')}">${ci===0?`<span class="badge">${esc(row[c]??'')}</span>`:esc(row[c]??'')}</td>`).join('')}
+    </tr>`).join('');
+}
+
+function selectRow(i){ selectedIdx=i; renderRows(); }
+
+function sortBy(col){
+  if(sortCol===col) sortDir*=-1; else{sortCol=col;sortDir=1;}
+  allRows.sort((a,b)=>{
+    const av=a[col]??'',bv=b[col]??'';
+    const n=parseFloat(av),m=parseFloat(bv);
+    return (!isNaN(n)&&!isNaN(m))?(n-m)*sortDir:String(av).localeCompare(String(bv))*sortDir;
+  });
+  buildHead(); filterTable();
+}
+
+function setActive(el){
+  document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
+  if(el) el.classList.add('active');
+}
+
+// ── ADD / EDIT ───────────────────────────────────────────
+function openAddModal(){
+  if(!currentTable){toast('Select a table first','err');return;}
+  editMode=false;
+  buildForm({});
+  document.getElementById('modal-title').textContent='Add New Row';
+  document.getElementById('modal-sub').textContent=currentTable+' → Oracle XE';
+  document.getElementById('modal-error').style.display='none';
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function openEditModal(){
+  if(!currentTable){toast('Select a table first','err');return;}
+  if(selectedIdx===null){toast('Select a row to edit','err');return;}
+  editMode=true;
+  buildForm(filtered[selectedIdx]);
+  document.getElementById('modal-title').textContent='Edit Row';
+  document.getElementById('modal-sub').textContent=currentTable+' → Oracle XE';
+  document.getElementById('modal-error').style.display='none';
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function buildForm(row){
+  document.getElementById('form-fields').innerHTML=columns.map(col=>`
+    <div class="form-group${WIDE.includes(col)?' full':''}">
+      <label class="form-label">${col}</label>
+      <input class="form-input" id="field-${col}" placeholder="${col}" value="${esc(row[col]??'')}"/>
+    </div>`).join('');
+}
+
+async function saveRow(){
+  const newRow={};
+  columns.forEach(c=>{ newRow[c]=document.getElementById('field-'+c)?.value||''; });
+  const errBox=document.getElementById('modal-error');
+  errBox.style.display='none';
+  try {
+    let res;
+    if(editMode && selectedIdx!==null){
+      const old=filtered[selectedIdx];
+      const pk=columns[0];
+      res=await api('PUT',currentTable,{newRow,whereCol:pk,whereVal:old[pk]});
+    } else {
+      res=await api('POST',currentTable,newRow);
+    }
+    if(res.error) throw new Error(res.error);
+    closeModal();
+    await loadTable(currentTable);
+    toast(editMode?'Row updated in Oracle':'Row added to Oracle','ok');
+  } catch(e){
+    errBox.textContent='Oracle error: '+e.message;
+    errBox.style.display='block';
+  }
+}
+
+let pendingDelete=false;
+function deleteRow(){
+  if(!currentTable){toast('Select a table','err');return;}
+  if(selectedIdx===null){toast('Select a row to delete','err');return;}
+  document.getElementById('confirm-overlay').classList.add('show');
+  pendingDelete=true;
+}
+async function confirmDelete(){
+  document.getElementById('confirm-overlay').classList.remove('show');
+  if(!pendingDelete) return;
+  const row=filtered[selectedIdx];
+  const pk=columns[0];
+  try {
+    const res=await api('DELETE',currentTable,{whereCol:pk,whereVal:row[pk]});
+    if(res.error) throw new Error(res.error);
+    selectedIdx=null;
+    await loadTable(currentTable);
+    toast('Row deleted from Oracle','ok');
+    setStatus('Row deleted from '+currentTable,'ok');
+  } catch(e){
+    toast('Delete error: '+e.message,'err');
+  }
+  pendingDelete=false;
+}
+
+function closeModal(){ document.getElementById('modal-overlay').classList.remove('show'); }
+
+// ── TOAST ────────────────────────────────────────────────
+function toast(msg,type='info'){
+  const t=document.getElementById('toast');
+  const el=document.createElement('div');
+  el.className=`toast-item ${type}`;
+  el.textContent=msg;
+  t.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),400);},3200);
+}
+
+function setStatus(msg,type=''){
+  const el=document.getElementById('status-msg');
+  el.textContent=msg;
+  el.className='sb-msg'+(type?' '+type:'');
+}
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') closeModal();
+  if(e.ctrlKey&&e.key==='n'){e.preventDefault();openAddModal();}
+  if(e.ctrlKey&&e.key==='e'){e.preventDefault();openEditModal();}
+  if(e.key==='Delete'&&selectedIdx!==null) deleteRow();
+});
+
+// START
+checkConnection();
+</script>
+</body>
+</html>
